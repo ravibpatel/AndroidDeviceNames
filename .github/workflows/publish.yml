@@ -56,8 +56,30 @@ concurrency:
 jobs:
   publish:
     name: Publish to Maven Central
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
+      # Without this, a missing secret surfaces much later as a confusing
+      # "signatory.keyId" error from the signing plugin.
+      - name: Check required secrets
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+        run: |
+          missing=""
+          for name in MAVEN_CENTRAL_USERNAME MAVEN_CENTRAL_PASSWORD SIGNING_KEY; do
+            if [ -z "${!name}" ]; then
+              missing="$missing $name"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "Missing required repository secret(s):$missing" >&2
+            echo "Maven Central only accepts signed artifacts, so SIGNING_KEY is mandatory." >&2
+            echo "Add them under Settings > Secrets and variables > Actions." >&2
+            exit 1
+          fi
+          echo "All required secrets are present."
+
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.ref }}
@@ -75,10 +97,20 @@ jobs:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
           RELEASE_MODE: ${{ inputs.release_mode || 'default' }}
         run: |
+          # A secret that was never created arrives as an empty string, and Gradle
+          # treats an empty property as present - the signing plugin then rejects ""
+          # as a key id. Export the optional ones only when they have a value.
+          if [ -n "$SIGNING_KEY_ID" ]; then
+            export ORG_GRADLE_PROJECT_signingInMemoryKeyId="$SIGNING_KEY_ID"
+          fi
+          if [ -n "$SIGNING_KEY_PASSWORD" ]; then
+            export ORG_GRADLE_PROJECT_signingInMemoryKeyPassword="$SIGNING_KEY_PASSWORD"
+          fi
+
           # An empty -P value would read back as "false", so only pass the flag
           # when the run actually overrides gradle.properties.
           if [ "$RELEASE_MODE" = default ]; then
