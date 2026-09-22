@@ -36,10 +36,15 @@ class DatabaseGenerator(
         val url = "jdbc:sqlite:$databasePath"
 
         try {
-            File(databasePath).parentFile?.mkdirs()
+            // Always build into a brand-new file. Dropping and recreating the table inside the
+            // previous database leaves behind free pages, which makes the output depend on the
+            // previous contents instead of only on the device list.
+            File(databasePath).apply {
+                parentFile?.mkdirs()
+                delete()
+            }
 
             DriverManager.getConnection(url)?.let { conn ->
-                conn.createStatement().execute(SQL_DROP)
                 conn.createStatement().execute(SQL_CREATE)
                 val statement = conn.prepareStatement(SQL_INSERT)
                 devices.forEach { device ->
@@ -62,14 +67,13 @@ class DatabaseGenerator(
                 }
             }
         } catch (e: SQLException) {
-            e.printStackTrace()
+            throw IllegalStateException("Failed to generate device database", e)
         }
     }
 
     companion object {
         private const val SQL_INSERT =
             "INSERT INTO devices (name, codename, model) VALUES (?, ?, ?)"
-        private const val SQL_DROP = "DROP TABLE IF EXISTS devices;"
         private const val SQL_CREATE = "CREATE TABLE devices (\n" +
                 "_id INTEGER PRIMARY KEY,\n" +
                 "name TEXT,\n" +

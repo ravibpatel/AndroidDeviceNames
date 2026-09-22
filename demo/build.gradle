@@ -1,20 +1,21 @@
-apply plugin: 'com.android.application'
+plugins {
+  alias(libs.plugins.android.application)
+}
 
 android {
-  compileSdkVersion buildConfig.compileSdk
-  buildToolsVersion buildConfig.buildTools
+  compileSdk 37
 
   defaultConfig {
     applicationId "com.jaredrummler.android.devicenames"
-    minSdkVersion buildConfig.minSdk
-    targetSdkVersion buildConfig.targetSdk
+    minSdk 24
+    targetSdk 37
     versionCode 1
     versionName "1.0"
   }
   buildTypes {
     release {
       minifyEnabled false
-      proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
     }
   }
     namespace 'com.jaredrummler.android.devicenames'
@@ -22,6 +23,6 @@ android {
 
 dependencies {
   implementation project(':library')
-  implementation deps.material
-  testImplementation deps.junit
+  implementation libs.material
+  testImplementation libs.junit
 }

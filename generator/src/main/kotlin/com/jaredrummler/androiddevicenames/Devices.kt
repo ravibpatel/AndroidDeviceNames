@@ -1,26 +1,19 @@
 package com.jaredrummler.androiddevicenames
 
-import java.io.BufferedReader
-import java.io.InputStreamReader
+import com.jsoizo.kotlincsv.csvReader
+import com.jsoizo.kotlincsv.reader.readAll
 
 object Devices {
 
   private const val URL = "https://storage.googleapis.com/play_public/supported_devices.csv"
 
-  fun get(url: String = URL) = mutableListOf<Device>().apply {
+  fun get(url: String = URL): List<Device> {
     val conn = java.net.URL(url).openConnection()
-    BufferedReader(InputStreamReader(conn.getInputStream(), "UTF-16")).use { reader ->
-      reader.readLine() // skip header
-      reader.forEachLine { line ->
-        val records = line.split(",").dropLastWhile(String::isEmpty).toTypedArray()
-        if (records.size == 4) {
-          val manufacturer = records[0]
-          val name = records[1]
-          val code = records[2]
-          val model = records[3]
-          add(Device(manufacturer, name, code, model))
-        }
-      }
+    return conn.getInputStream().use { stream ->
+      csvReader().readAll(stream, charset = "UTF-16")
+        .drop(1) // skip header
+        .filter { records -> records.size == 4 }
+        .map { (manufacturer, name, code, model) -> Device(manufacturer, name, code, model) }
     }
   }
 }

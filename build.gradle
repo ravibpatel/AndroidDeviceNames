@@ -1,73 +1,7 @@
-buildscript {
-  // @formatter:off
-  ext.buildConfig = [
-      compileSdk              : 32,
-      targetSdk               : 32,
-      minSdk                  : 16,
-      buildTools              : '31.0.0',
-  ]
-
-  ext.versions = [
-      kotlin                  : '1.7.20',
-      androidx                : '1.1.0',
-      material                : '1.1.0',
-      gson                    : '2.8.6',
-      constraintlayout        : '1.1.3',
-      sqlite                  : '3.40.0.0',
-      junit                   : '4.12',
-      mockito_kotlin          : '2.0.0',
-      mockito_core            : '2.23.4',
-      ktlint                  : '8.0.0',
-      dokka                   : '1.4.32'
-  ]
-
-  ext.deps = [
-      androidx: [
-          annotations         : "androidx.annotation:annotation:${versions.androidx}",
-          appCompat           : "androidx.appcompat:appcompat:${versions.androidx}",
-          constraintLayout    : "androidx.constraintlayout:constraintlayout:${versions.constraintlayout}",
-          preferences         : "androidx.preference:preference:${versions.preference}"
-      ],
-      kotlin: [
-          stdlib: [
-              jdk             : "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${versions.kotlin}"
-          ]
-      ],
-      gson                    : "com.google.code.gson:gson:${versions.gson}",
-      material                : "com.google.android.material:material:${versions.material}",
-      sqlite                  : "org.xerial:sqlite-jdbc:${versions.sqlite}",
-      junit                   : "junit:junit:${versions.junit}",
-      mockito: [
-          core                : "org.mockito:mockito-core:${versions.mockito_core}",
-          kotlin              : "com.nhaarman.mockitokotlin2:mockito-kotlin:${versions.mockito_kotlin}"
-      ]
-  ]
-
-  repositories {
-    google()
-    mavenCentral()
-  }
-
-  dependencies {
-    classpath 'com.android.tools.build:gradle:7.3.1'
-    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${versions.kotlin}"
-    classpath "org.jetbrains.dokka:dokka-gradle-plugin:${versions.dokka}"
-    classpath "io.github.gradle-nexus:publish-plugin:1.1.0"
-  }
-}
-
+// Dependency versions live in gradle/libs.versions.toml.
 plugins {
-  id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
-  id("org.jetbrains.dokka") version "1.4.32"
-  id("org.jlleitschuh.gradle.ktlint") version "9.4.0"
+  alias(libs.plugins.android.application) apply false
+  alias(libs.plugins.android.library) apply false
+  alias(libs.plugins.kotlin.jvm) apply false
+  alias(libs.plugins.maven.publish) apply false
 }
-
-allprojects {
-  repositories {
-    google()
-    mavenCentral()
-  }
-}
-
-apply plugin: 'io.github.gradle-nexus.publish-plugin'
-apply from: rootProject.file('scripts/publish-root.gradle')

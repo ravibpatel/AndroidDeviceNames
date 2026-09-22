@@ -1,91 +1,52 @@
-apply plugin: 'maven-publish'
-apply plugin: 'signing'
-apply plugin: 'org.jetbrains.dokka'
+// Publishes the library to Maven Central through the Sonatype Central Portal.
+//
+// Coordinates come from gradle.properties (GROUP / POM_ARTIFACT_ID / VERSION_NAME).
+// Credentials and the signing key are supplied as Gradle properties, which CI passes
+// as environment variables:
+//   ORG_GRADLE_PROJECT_mavenCentralUsername       Central Portal user token name
+//   ORG_GRADLE_PROJECT_mavenCentralPassword       Central Portal user token password
+//   ORG_GRADLE_PROJECT_signingInMemoryKey         ASCII-armored PGP private key
+//   ORG_GRADLE_PROJECT_signingInMemoryKeyId       (optional) last 8 hex chars of the key id
+//   ORG_GRADLE_PROJECT_signingInMemoryKeyPassword (optional) key passphrase
+//
+// Whether a deployment is released automatically or left pending for a manual
+// "Publish" click in the Central Portal is controlled by the
+// mavenCentralAutomaticPublishing property in gradle.properties, which CI can
+// override with -PmavenCentralAutomaticPublishing=true|false.
+mavenPublishing {
+  publishToMavenCentral()
+  signAllPublications()
 
-task androidSourcesJar(type: Jar) {
-    archiveClassifier.set('sources')
-    if (project.plugins.findPlugin("com.android.library")) {
-        // For Android libraries
-        from android.sourceSets.main.java.srcDirs
-        from android.sourceSets.main.kotlin.srcDirs
-    } else {
-        // For pure Kotlin libraries
-        from sourceSets.main.java.srcDirs
-        from sourceSets.main.kotlin.srcDirs
+  coordinates(GROUP, POM_ARTIFACT_ID, VERSION_NAME)
+
+  // Android library defaults: publishes the "release" variant with sources and javadoc jars.
+
+  pom {
+    name = POM_ARTIFACT_ID
+    description = "A small Android library to get the market name of an Android device."
+    url = "https://github.com/ravibpatel/AndroidDeviceNames"
+    licenses {
+      license {
+        name = "The Apache License, Version 2.0"
+        url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+      }
     }
-}
-
-tasks.withType(dokkaHtmlPartial.getClass()).configureEach {
-    pluginsMapConfiguration.set(
-            ["org.jetbrains.dokka.base.DokkaBase": """{ "separateInheritedMembers": true}"""]
-    )
-}
-
-task javadocJar(type: Jar, dependsOn: dokkaJavadoc) {
-    archiveClassifier.set('javadoc')
-    from dokkaJavadoc.outputDirectory
-}
-
-artifacts {
-    archives androidSourcesJar
-}
-
-group = "com.jaredrummler"
-version = "2.1.1"
-
-afterEvaluate {
-    publishing {
-        publications {
-            release(MavenPublication) {
-                // The coordinates of the library, being set from variables, setup below.
-                groupId "com.jaredrummler"
-                artifactId "android-device-names"
-                version "2.1.1"
-
-                // Two artifacts, the `aar` (or `jar`) and the sources
-                if (project.plugins.findPlugin("com.android.library")) {
-                    from components.release
-                } else {
-                    from components.java
-                }
-
-                artifact androidSourcesJar
-                artifact javadocJar
-
-                pom {
-                    name = "android-device-names"
-                    description = "A small Android library to get the market name of an Android device."
-                    url = "https://github.com/jaredrummler/AndroidDeviceNames"
-                    licenses {
-                        license {
-                            name = 'Apache License'
-                            url = 'https://github.com/jaredrummler/AndroidDeviceNames/blob/master/LICENSE'
-                        }
-                    }
-                    developers {
-                        developer {
-                            id = "jaredrummler"
-                            name = "Jared Rummler"
-                            email = "jaredrummler@gmail.com"
-                        }
-                    }
-
-                    // Version control info.
-                    scm {
-                        connection = "scm:git:github.com/jaredrummler/AndroidDeviceNames.git"
-                        developerConnection = "scm:git:ssh://github.com/jaredrummler/AndroidDeviceNames.git"
-                        url = "https://github.com/jaredrummler/AndroidDeviceNames/tree/main"
-                    }
-                }
-            }
-        }
+    developers {
+      developer {
+        id = "jaredrummler"
+        name = "Jared Rummler"
+        email = "jaredrummler@gmail.com"
+      }
+      developer {
+        id = "ravibpatel"
+        name = "Ravi Patel"
+        url = "https://github.com/ravibpatel"
+      }
     }
-}
-
-ext["signing.keyId"] = System.getenv('SIGNING_KEY_ID') ?: ext["signing.keyId"]
-ext["signing.password"] = System.getenv('SIGNING_PASSWORD') ?: ext["signing.password"]
-ext["signing.secretKeyRingFile"] = System.getenv('SIGNING_SECRET_KEY_RING_FILE') ?: ext["signing.secretKeyRingFile"]
-
-signing {
-    sign publishing.publications
+    scm {
+      url = "https://github.com/ravibpatel/AndroidDeviceNames"
+      connection = "scm:git:git://github.com/ravibpatel/AndroidDeviceNames.git"
+      developerConnection = "scm:git:ssh://git@github.com/ravibpatel/AndroidDeviceNames.git"
+    }
+  }
 }

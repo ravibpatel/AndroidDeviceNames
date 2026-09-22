@@ -1,0 +1,122 @@
+# Publishes the library to Maven Central (via the Sonatype Central Portal) and
+# creates the matching GitHub release.
+#
+# Whether the deployment is released or left pending for a manual "Publish" click
+# comes from mavenCentralAutomaticPublishing in gradle.properties, unless the
+# release_mode input overrides it. Either way the upload is validated by the
+# Portal before this job succeeds, so a broken artifact fails here.
+#
+# Runs automatically after update-database.yml makes a release, when a v* tag is
+# pushed by hand, or on demand from the Actions tab.
+#
+# Required repository secrets:
+#   MAVEN_CENTRAL_USERNAME Central Portal user token "username"
+#   MAVEN_CENTRAL_PASSWORD Central Portal user token "password"
+#   SIGNING_KEY ASCII-armored PGP private key (gpg --armor --export-secret-keys)
+#   SIGNING_KEY_ID (optional) last 8 hex characters of the key id
+#   SIGNING_KEY_PASSWORD (optional) passphrase of the key
+name: Publish to Maven Central
+
+on:
+  push:
+    tags: ['v*']
+  workflow_call:
+    inputs:
+      ref:
+        description: Tag to publish
+        type: string
+        required: true
+      release_mode:
+        description: default | true (release now) | false (leave pending)
+        type: string
+        required: false
+        default: default
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag or commit to publish (defaults to the selected branch)
+        type: string
+        required: false
+      release_mode:
+        description: Release the deployment, or leave it pending in the Portal?
+        type: choice
+        options:
+          - default
+          - 'true'
+          - 'false'
+        default: default
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to Maven Central
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Publish to Maven Central
+        id: publish
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          RELEASE_MODE: ${{ inputs.release_mode || 'default' }}
+        run: |
+          # An empty -P value would read back as "false", so only pass the flag
+          # when the run actually overrides gradle.properties.
+          if [ "$RELEASE_MODE" = default ]; then
+            AUTOMATIC="$(sed -n 's/^mavenCentralAutomaticPublishing=//p' gradle.properties)"
+            ./gradlew :library:publishToMavenCentral
+          else
+            AUTOMATIC="$RELEASE_MODE"
+            ./gradlew :library:publishToMavenCentral "-PmavenCentralAutomaticPublishing=$RELEASE_MODE"
+          fi
+          echo "automatic=$AUTOMATIC" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        env:
+          AUTOMATIC: ${{ steps.publish.outputs.automatic }}
+          VERSION_LABEL: ${{ inputs.ref || github.ref_name }}
+        run: |
+          if [ "$AUTOMATIC" = true ]; then
+            echo "Released $VERSION_LABEL to Maven Central." >> "$GITHUB_STEP_SUMMARY"
+            echo "It appears on repo1.maven.org within ~30 minutes." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Action required" >> "$GITHUB_STEP_SUMMARY"
+            echo "$VERSION_LABEL was uploaded and validated, and is **waiting for release**." >> "$GITHUB_STEP_SUMMARY"
+            echo "Review it at <https://central.sonatype.com/publishing/deployments> and click **Publish**." >> "$GITHUB_STEP_SUMMARY"
+            echo "Nothing is public until you do." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v$(sed -n 's/^VERSION_NAME=//p' gradle.properties)"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists."
+            exit 0
+          fi
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$(git rev-parse HEAD)" \
+            --title "$TAG" \
+            --generate-notes \
+            database/android-devices.zip

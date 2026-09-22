@@ -1,0 +1,114 @@
+# Monthly refresh of the device database from Google's "supported devices" list
+# (https://storage.googleapis.com/play_public/supported_devices.html).
+#
+# If the regenerated database differs from the committed one, the workflow bumps
+# VERSION_NAME, commits the new database, tags the release and hands off to
+# publish.yml to upload the library to Maven Central.
+name: Update device database
+
+on:
+  schedule:
+    # 06:00 UTC on the 1st of every month
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version component to bump when a release is made
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      force:
+        description: Release even if the database is unchanged
+        type: boolean
+        default: false
+      release_mode:
+        description: Release the deployment, or leave it pending in the Portal?
+        type: choice
+        options:
+          - default
+          - 'true'
+          - 'false'
+        default: default
+
+permissions:
+  contents: write
+
+# Never let two releases race each other (also shared with publish.yml).
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Regenerate database
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Download device list and regenerate database
+        run: ./gradlew :generator:generateDatabase
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet -- library/src/main/assets/android-devices.db; then
+            echo "Device database is unchanged."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git diff --stat -- database library/src/main/assets
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump version
+        id: bump
+        if: steps.changes.outputs.changed == 'true' || inputs.force == true
+        env:
+          BUMP: ${{ inputs.bump || 'patch' }}
+        run: |
+          OLD="$(sed -n 's/^VERSION_NAME=//p' gradle.properties)"
+          IFS=. read -r MAJOR MINOR PATCH <<< "$OLD"
+          case "$BUMP" in
+            major) NEW="$((MAJOR + 1)).0.0" ;;
+            minor) NEW="$MAJOR.$((MINOR + 1)).0" ;;
+            *)     NEW="$MAJOR.$MINOR.$((PATCH + 1))" ;;
+          esac
+          echo "Bumping version: $OLD -> $NEW"
+          sed -i "s/^VERSION_NAME=.*/VERSION_NAME=$NEW/" gradle.properties
+          # Keep the dependency snippet and download links in the README current.
+          sed -i "s/${OLD//./\.}/$NEW/g" README.md
+          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the library still builds with the new database
+        if: steps.bump.outcome == 'success'
+        run: ./gradlew :library:assembleRelease
+
+      - name: Commit, tag and push
+        if: steps.bump.outcome == 'success'
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add database library/src/main/assets/android-devices.db gradle.properties README.md
+          git commit -m "Update device database and bump version to $VERSION"
+          git tag -a "v$VERSION" -m "v$VERSION"
+          git push origin "HEAD:${GITHUB_REF_NAME}" "v$VERSION"
+
+  publish:
+    name: Publish
+    needs: update
+    if: needs.update.outputs.version != ''
+    uses: ./.github/workflows/publish.yml
+    with:
+      ref: v${{ needs.update.outputs.version }}
+      release_mode: ${{ inputs.release_mode || 'default' }}
+    secrets: inherit

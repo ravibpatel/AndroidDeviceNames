@@ -18,10 +18,19 @@ package com.jaredrummler.androiddevicenames
 
 class Generator {
   companion object {
+    private const val MIN_EXPECTED_DEVICES = 20_000
+
     @JvmStatic
     fun main(args: Array<String>) {
       // Get the devices supported by Google Play and create the database
-      DatabaseGenerator(Devices.get()).generate()
+      val devices = Devices.get()
+      // Guard against silently generating an empty/truncated database if Google changes
+      // the CSV layout or the download is incomplete.
+      check(devices.size >= MIN_EXPECTED_DEVICES) {
+        "Only ${devices.size} devices were parsed (expected at least $MIN_EXPECTED_DEVICES); refusing to generate database"
+      }
+      println("Parsed ${devices.size} devices")
+      DatabaseGenerator(devices).generate()
     }
   }
 }

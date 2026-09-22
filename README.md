@@ -1,17 +1,17 @@
 # Android Device Names
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.jaredrummler/android-device-names/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.jaredrummler/android-device-names) [![License](http://img.shields.io/:license-apache-blue.svg)](LICENSE.txt) [![API](https://img.shields.io/badge/API-7%2B-blue.svg?style=flat)](https://android-arsenal.com/api?level=7) <a href="http://www.methodscount.com/?lib=com.jaredrummler%3Aandroid-device-names%3A2.1.1" target="_blank"><img src="https://img.shields.io/badge/method count-86-e91e63.svg"></img></a> <a href="http://www.methodscount.com/?lib=com.jaredrummler%3Aandroid-device-names%3A2.1.1" target="_blank"><img src="https://img.shields.io/badge/size-34 KB-e91e63.svg"></img></a> [![Twitter Follow](https://img.shields.io/twitter/follow/jaredrummler.svg?style=social)](https://twitter.com/jaredrummler)
+[![Maven Central](https://img.shields.io/maven-central/v/org.rbsoft/android-device-names)](https://central.sonatype.com/artifact/org.rbsoft/android-device-names) [![License](http://img.shields.io/:license-apache-blue.svg)](LICENSE.txt) [![API](https://img.shields.io/badge/API-16%2B-blue.svg?style=flat)](https://android-arsenal.com/api?level=16) [![Update device database](https://github.com/ravibpatel/AndroidDeviceNames/actions/workflows/update-database.yml/badge.svg)](https://github.com/ravibpatel/AndroidDeviceNames/actions/workflows/update-database.yml)
 
 A small Android library to get the market name of an Android device.
 
 On many popular devices the market name of the device is not available. For example, on the Samsung Galaxy S7 the value of [`Build.MODEL`](http://developer.android.com/reference/android/os/Build.html#MODEL) could be `"SAMSUNG-SM-G930A"`, `"SM-G930F"`, `"SM-G930K"`, `"SM-G930L"`, etc.
 
-This small library gets the market (consumer friendly) name of a device.
+This small library gets the market (consumer-friendly) name of a device.
 
 Usage
 -----
 
-**Setup the library**
+**Set up the library**
 
 ```java
 DeviceName.init(this);
@@ -49,15 +49,31 @@ DeviceName.with(context).request(new DeviceName.Callback() {
  ```
 
 The above code queries a database included in the library based on [Google's maintained list
-](https://support.google.com/googleplay/answer/1727131?hl=en). This supports *over 27,000* devices.
+](https://support.google.com/googleplay/answer/1727131?hl=en). This supports *over 50,000* devices.
 
 Download
 --------
 
-Download [the latest AAR](https://repo1.maven.org/maven2/com/jaredrummler/android-device-names/2.1.1/android-device-names-2.1.1.aar) or grab via Gradle:
+Download [the latest AAR](https://repo1.maven.org/maven2/org/rbsoft/android-device-names/2.2.0/android-device-names-2.2.0.aar) or grab via Gradle:
 
 ```groovy
-implementation('com.jaredrummler:android-device-names:2.1.1') 
+implementation('org.rbsoft:android-device-names:2.2.0')
+```
+
+Database updates
+----------------
+
+The bundled device database is refreshed automatically. On the 1st of every month the
+[Update device database](.github/workflows/update-database.yml) workflow downloads Google's
+[supported devices list](https://storage.googleapis.com/play_public/supported_devices.html),
+regenerates `database/android-devices.db`, and, if anything changed, bumps `VERSION_NAME` in
+[gradle.properties](gradle.properties), tags the release and publishes the new version to
+Maven Central through the [Publish](.github/workflows/publish.yml) workflow.
+
+To regenerate the database locally:
+
+```
+./gradlew :generator:generateDatabase
 ```
 
 

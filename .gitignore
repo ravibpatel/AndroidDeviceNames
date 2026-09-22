@@ -3,6 +3,8 @@
 ### Gradle
 .gradle/
 build/
+# Records the IDE's own JVM; would override the JDK that CI installs.
+gradle/gradle-daemon-jvm.properties
 
 ### IntelliJ IDEA
 /.idea
@@ -20,6 +22,10 @@ out/
 ### Android
 *.jks
 *.dex
+
+### Signing keys
+*.asc
+*.gpg
 
 ### Java
 *.class

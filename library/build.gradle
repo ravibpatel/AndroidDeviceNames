@@ -1,12 +1,13 @@
-apply plugin: 'com.android.library'
+plugins {
+  alias(libs.plugins.android.library)
+  alias(libs.plugins.maven.publish)
+}
 
 android {
-  compileSdkVersion buildConfig.compileSdk
-  buildToolsVersion buildConfig.buildTools
+  compileSdk 37
 
   defaultConfig {
-    minSdkVersion buildConfig.minSdk
-    targetSdkVersion buildConfig.targetSdk
+    minSdk 16
   }
 
   compileOptions {
@@ -21,7 +22,12 @@ android {
 }
 
 dependencies {
-  implementation deps.androidx.annotations
+  implementation libs.androidx.annotation
 }
 
 apply from: rootProject.file('scripts/publish-module.gradle')
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(17)
+  }
+}

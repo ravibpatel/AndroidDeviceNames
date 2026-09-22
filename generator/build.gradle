@@ -1,8 +1,37 @@
-apply plugin: 'java-library'
-apply plugin: 'kotlin'
+plugins {
+  id 'java-library'
+  alias(libs.plugins.kotlin.jvm)
+}
+
+// The generator is a build-time tool that never ships to Android, so it just follows
+// the JDK used to build. The toolchain keeps the Java and Kotlin tasks on one target.
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(17)
+  }
+}
 
 dependencies {
-  implementation deps.kotlin.stdlib.jdk
-  implementation deps.gson
-  implementation deps.sqlite
+  implementation libs.gson
+  implementation libs.kotlin.csv
+  implementation libs.sqlite
+}
+
+// Downloads Google's supported-devices list, regenerates database/android-devices.db
+// (+ .zip) and copies the fresh database into the library's assets.
+//
+//   ./gradlew :generator:generateDatabase
+tasks.register('generateDatabase', JavaExec) {
+  group = 'database'
+  description = 'Regenerates the device database from the Google Play supported devices list.'
+  classpath = sourceSets.main.runtimeClasspath
+  mainClass = 'com.jaredrummler.androiddevicenames.Generator'
+  // DatabaseGenerator writes to paths relative to the repository root.
+  workingDir = rootProject.projectDir
+  doLast {
+    copy {
+      from rootProject.file('database/android-devices.db')
+      into rootProject.file('library/src/main/assets')
+    }
+  }
 }
