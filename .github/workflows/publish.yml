@@ -3,8 +3,8 @@
 #
 # Whether the deployment is released or left pending for a manual "Publish" click
 # comes from mavenCentralAutomaticPublishing in gradle.properties, unless the
-# release_mode input overrides it. Either way the upload is validated by the
-# Portal before this job succeeds, so a broken artifact fails here.
+# release_mode input overrides it. Either way, the Portal validates the upload
+# before this job succeeds, so a broken artifact fails here.
 #
 # Runs automatically after update-database.yml makes a release, when a v* tag is
 # pushed by hand, or on demand from the Actions tab.
