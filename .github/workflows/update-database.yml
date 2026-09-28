@@ -33,15 +33,20 @@ on:
 permissions:
   contents: write
 
-# Never let two releases race each other (also shared with publish.yml).
-concurrency:
-  group: release
-  cancel-in-progress: false
-
 jobs:
   update:
     name: Regenerate database
+    # Releases are only cut from the default branch (a scheduled run always is).
+    if: github.event_name == 'schedule' || github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Never let two releases race each other (also shared with publish.yml). This must
+    # stay at job level: publish.yml takes the same group at workflow level, and if this
+    # run held it as the caller, the called workflow would wait on its own caller and
+    # GitHub would cancel it as a deadlock.
+    concurrency:
+      group: release
+      cancel-in-progress: false
     outputs:
       version: ${{ steps.bump.outputs.version }}
     steps:
@@ -80,11 +85,12 @@ jobs:
             major) NEW="$((MAJOR + 1)).0.0" ;;
             minor) NEW="$MAJOR.$((MINOR + 1)).0" ;;
             *)     NEW="$MAJOR.$MINOR.$((PATCH + 1))" ;;
-          esac
+          sac
           echo "Bumping version: $OLD -> $NEW"
           sed -i "s/^VERSION_NAME=.*/VERSION_NAME=$NEW/" gradle.properties
           # Keep the dependency snippet and download links in the README current.
-          sed -i "s/${OLD//./\.}/$NEW/g" README.md
+          # [.] rather than \. - bash 5.2 strips the backslash from the replacement.
+          sed -i "s/${OLD//./[.]}/$NEW/g" README.md
           echo "version=$NEW" >> "$GITHUB_OUTPUT"
 
       - name: Verify the library still builds with the new database
@@ -101,7 +107,11 @@ jobs:
           git add database library/src/main/assets/android-devices.db gradle.properties README.md
           git commit -m "Update device database and bump version to $VERSION"
           git tag -a "v$VERSION" -m "v$VERSION"
-          git push origin "HEAD:${GITHUB_REF_NAME}" "v$VERSION"
+          # --atomic: if the branch moved since checkout, push neither ref. Otherwise the
+          # tag could land without its commit and block every later run at this version.
+          # (A tag pushed with GITHUB_TOKEN does not trigger publish.yml's tag trigger,
+          # which is why the publish job below calls it directly.)
+          git push --atomic origin "HEAD:${GITHUB_REF_NAME}" "v$VERSION"
 
   publish:
     name: Publish

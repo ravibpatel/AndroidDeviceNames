@@ -3,8 +3,9 @@
 #
 # Whether the deployment is released or left pending for a manual "Publish" click
 # comes from mavenCentralAutomaticPublishing in gradle.properties, unless the
-# release_mode input overrides it. Either way, the Portal validates the upload
-# before this job succeeds, so a broken artifact fails here.
+# release_mode input overrides it. An automatic release waits for the Portal to
+# validate the upload, so a broken artifact fails here. A pending one is not
+# validated until it is reviewed in the Portal.
 #
 # Runs automatically after update-database.yml makes a release, when a v* tag is
 # pushed by hand, or on demand from the Actions tab.
@@ -57,6 +58,7 @@ jobs:
   publish:
     name: Publish to Maven Central
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
       # Without this, a missing secret surfaces much later as a confusing
       # "signatory.keyId" error from the signing plugin.
@@ -132,7 +134,7 @@ jobs:
             echo "It appears on repo1.maven.org within ~30 minutes." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "### Action required" >> "$GITHUB_STEP_SUMMARY"
-            echo "$VERSION_LABEL was uploaded and validated, and is **waiting for release**." >> "$GITHUB_STEP_SUMMARY"
+            echo "$VERSION_LABEL was uploaded and is **waiting for release**." >> "$GITHUB_STEP_SUMMARY"
             echo "Review it at <https://central.sonatype.com/publishing/deployments> and click **Publish**." >> "$GITHUB_STEP_SUMMARY"
             echo "Nothing is public until you do." >> "$GITHUB_STEP_SUMMARY"
           fi
