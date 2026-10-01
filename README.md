@@ -60,11 +60,11 @@ supports over **50,000** devices.
 Download
 --------
 
-Download [the latest AAR](https://repo1.maven.org/maven2/org/rbsoft/android-device-names/2.2.0/android-device-names-2.2.0.aar)
+Download [the latest AAR](https://repo1.maven.org/maven2/org/rbsoft/android-device-names/2.2.1/android-device-names-2.2.1.aar)
 or grab via Gradle:
 
 ```groovy
-implementation('org.rbsoft:android-device-names:2.2.0')
+implementation('org.rbsoft:android-device-names:2.2.1')
 ```
 
 Database updates
