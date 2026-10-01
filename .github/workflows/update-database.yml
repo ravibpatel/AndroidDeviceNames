@@ -85,7 +85,7 @@ jobs:
             major) NEW="$((MAJOR + 1)).0.0" ;;
             minor) NEW="$MAJOR.$((MINOR + 1)).0" ;;
             *)     NEW="$MAJOR.$MINOR.$((PATCH + 1))" ;;
-          sac
+          esac
           echo "Bumping version: $OLD -> $NEW"
           sed -i "s/^VERSION_NAME=.*/VERSION_NAME=$NEW/" gradle.properties
           # Keep the dependency snippet and download links in the README current.
